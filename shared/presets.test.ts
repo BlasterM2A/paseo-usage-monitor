@@ -1564,3 +1564,47 @@ describe("github-copilot reads its quota through a probe", () => {
     expect(project("github-copilot", { ...GITHUB_COPILOT_PROBE, buckets: [] })).toEqual([]);
   });
 });
+
+describe("junie reads its quota through a probe", () => {
+  test("names a probe source and carries no credentials or url", () => {
+    const junie = getUsagePreset("junie");
+    expect(junie?.source).toEqual({ kind: "probe", probe: "junie" });
+    expect(junie?.credentials).toEqual({});
+  });
+
+  test("stays unverified because the probe is local telemetry", () => {
+    const junie = getUsagePreset("junie");
+    expect(junie?.unverified).toBe(true);
+    expect(junie?.description).toBe(
+      "JetBrains Junie AI subscription and session tokens. Verified on Linux and macOS.",
+    );
+  });
+
+  test("projects active balance and session tokens readings", () => {
+    const document = {
+      source: "junie",
+      status: "ok",
+      notice: null,
+      plan: "JetBrains AI",
+      balance: { percent: 100, status: "active" },
+      usage: { sessionTokens: 4200 },
+    };
+    const readings = project("junie", document);
+    expect(readings.map((r) => r.id)).toEqual(["balance", "session-tokens"]);
+    expect(readings[0]).toMatchObject({
+      kind: "balance",
+      id: "balance",
+      label: "Account",
+      unit: "percent",
+      remaining: 100,
+    });
+    expect(readings[1]).toMatchObject({
+      kind: "quota",
+      id: "session-tokens",
+      label: "Session Tokens",
+      unit: "tokens",
+      used: 4200,
+      window: { label: "Recent Session" },
+    });
+  });
+});

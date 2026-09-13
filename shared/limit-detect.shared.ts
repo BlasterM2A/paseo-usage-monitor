@@ -347,6 +347,17 @@ const VENDOR_SPECS: readonly VendorSpec[] = [
     agentProviders: ["copilot", "github-copilot"],
   },
   {
+    id: "junie",
+    presets: ["junie"],
+    trackedBy: "junie",
+    label: "JetBrains Junie",
+    kind: "balance",
+    usageUrl: "https://www.jetbrains.com/ai/",
+    topUpUrl: "https://www.jetbrains.com/ai/",
+    modelPrefixes: [/^junie\//i],
+    agentProviders: ["junie"],
+  },
+  {
     id: "cursor",
     presets: ["cursor"],
     trackedBy: "cursor",

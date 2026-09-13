@@ -131,7 +131,7 @@ export const UsageFileSourceSchema = z.object({
  */
 export const UsageProbeSourceSchema = z.object({
   kind: z.literal("probe"),
-  probe: z.enum(["antigravity", "github-copilot"]),
+  probe: z.enum(["antigravity", "github-copilot", "junie"]),
 });
 
 export const UsageSourceSchema = z.discriminatedUnion("kind", [

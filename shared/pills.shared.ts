@@ -66,6 +66,7 @@ const SUGGESTED_MATCH_SPECS: Record<string, readonly string[]> = {
     "opencode:github-copilot",
   ],
   antigravity: ["omp:google-antigravity", "opencode:google-agy"],
+  junie: ["junie", "omp:junie", "pi:junie", "opencode:junie"],
   cursor: ["cursor", "omp:cursor"],
   grok: ["omp:grok"],
   xai: ["omp:xai", "pi:xai", "opencode:xai"],

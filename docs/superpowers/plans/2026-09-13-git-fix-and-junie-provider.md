@@ -120,22 +120,22 @@
 - Consumes: `~/.junie/secure_credentials.json`, `~/.junie/sessions/`
 - Produces: `UsageReading` para el dashboard de Paseo con el estado de cuenta y cuota de Junie.
 
-- [ ] **Step 1: Escribir tests unitarios en `server/junie-probe.test.ts`**
+- [x] **Step 1: Escribir tests unitarios en `server/junie-probe.test.ts`**
   Validar casos:
   * Credenciales presentes y sesión activa -> estado OK con métricas.
   * Sesión con `ExitPaymentRequired` -> estado de agotamiento con advertencia (0% balance).
   * Sin instalación de Junie -> error descriptivo.
 
-- [ ] **Step 2: Implementar `server/junie-probe.server.ts`**
+- [x] **Step 2: Implementar `server/junie-probe.server.ts`**
   Lógica de detección de credenciales y lectura de la última sesión.
 
-- [ ] **Step 3: Conectar el probe en `server/source.server.ts` y preset en `shared/presets.shared.ts`**
+- [x] **Step 3: Conectar el probe en `server/source.server.ts` y preset en `shared/presets.shared.ts`**
   Registrar `"junie"` como probe reconocido.
 
-- [ ] **Step 4: Ejecutar tests**
+- [x] **Step 4: Ejecutar tests**
   `npm test -- server/junie-probe.test.ts server/source.test.ts`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
   `git commit -am "feat(probe): add live Junie quota and balance monitor probe"`
 
 ---

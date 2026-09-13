@@ -334,12 +334,17 @@ describe("probe source", () => {
         seen.push("github-copilot");
         return { buckets: [] };
       },
+      async probeJunie() {
+        seen.push("junie");
+        return { balance: { percent: 100 } };
+      },
     };
 
     await fetchSourceDocument({ kind: "probe", probe: "github-copilot" }, adapters, NO_FILES);
+    await fetchSourceDocument({ kind: "probe", probe: "junie" }, adapters, NO_FILES);
     await fetchSourceDocument(PROBE_SOURCE, adapters, NO_FILES);
 
-    expect(seen).toEqual(["github-copilot", "antigravity"]);
+    expect(seen).toEqual(["github-copilot", "junie", "antigravity"]);
   });
 
   test("labels a missing github-copilot adapter as that provider's failure", async () => {
@@ -363,6 +368,29 @@ describe("probe source", () => {
 
     expect(failure).toBeInstanceOf(UsageSourceError);
     expect(String(failure)).toContain("GitHub Copilot probe failed: no probe is available");
+  });
+
+  test("labels a missing junie adapter as that provider's failure", async () => {
+    const adapters: UsageSourceAdapters = {
+      async fetchJson() {
+        throw new Error("unreachable");
+      },
+      async runCommand() {
+        throw new Error("unreachable");
+      },
+      async probeAntigravity() {
+        return {};
+      },
+    };
+
+    const failure = await fetchSourceDocument(
+      { kind: "probe", probe: "junie" },
+      adapters,
+      NO_FILES,
+    ).catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(UsageSourceError);
+    expect(String(failure)).toContain("JetBrains Junie probe failed: no probe is available");
   });
 
   test("reports a missing probe adapter as that provider's failure", async () => {
@@ -418,6 +446,8 @@ describe("probe source", () => {
 
   test("wires the real probe into the node adapters", () => {
     expect(typeof createNodeSourceAdapters().probeAntigravity).toBe("function");
+    expect(typeof createNodeSourceAdapters().probeGithubCopilot).toBe("function");
+    expect(typeof createNodeSourceAdapters().probeJunie).toBe("function");
   });
 });
 

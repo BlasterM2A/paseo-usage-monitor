@@ -3,6 +3,7 @@ import { promisify } from "node:util";
 import { probeAntigravityUsage } from "./antigravity-usage.server";
 import { type CredentialAdapters, expandPath } from "./credentials.server";
 import { probeGithubCopilotQuota } from "./github-copilot-probe.server";
+import { probeJunieQuota } from "./junie-probe.server";
 import { UsageInterpolationError, UsageRateLimitedError, UsageSourceError } from "./errors.server";
 import type { UsageSource } from "../shared/limits.shared";
 
@@ -38,6 +39,7 @@ export interface UsageSourceAdapters {
    */
   probeAntigravity?: () => Promise<unknown>;
   probeGithubCopilot?: () => Promise<unknown>;
+  probeJunie?: () => Promise<unknown>;
 }
 
 function describeRequest(request: UsageHttpRequest): string {
@@ -157,12 +159,14 @@ export function createNodeSourceAdapters(): UsageSourceAdapters {
     runCommand: runCommandWithNode,
     probeAntigravity: probeAntigravityUsage,
     probeGithubCopilot: () => probeGithubCopilotQuota(),
+    probeJunie: () => probeJunieQuota(),
   };
 }
 
 const PROBE_LABELS: Record<UsageProbeName, string> = {
   antigravity: "Antigravity",
   "github-copilot": "GitHub Copilot",
+  junie: "JetBrains Junie",
 };
 
 function probeAdapter(
@@ -170,7 +174,8 @@ function probeAdapter(
   adapters: UsageSourceAdapters,
 ): (() => Promise<unknown>) | undefined {
   if (probe === "antigravity") return adapters.probeAntigravity;
-  return adapters.probeGithubCopilot;
+  if (probe === "github-copilot") return adapters.probeGithubCopilot;
+  return adapters.probeJunie;
 }
 
 async function runProbe(probe: UsageProbeName, adapters: UsageSourceAdapters): Promise<unknown> {

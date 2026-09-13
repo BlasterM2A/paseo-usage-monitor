@@ -1553,6 +1553,32 @@ const PRESET_DEFINITIONS: Record<string, UsageProvider> = {
     ],
   }),
 
+  junie: definePreset({
+    label: "JetBrains Junie",
+    icon: { kind: "monogram", text: "Ju", color: "#6B7280" },
+    description:
+      "JetBrains Junie AI subscription and session tokens. Verified on Linux and macOS.",
+    unverified: true,
+    source: { kind: "probe", probe: "junie" },
+    readings: [
+      {
+        kind: "balance",
+        id: "balance",
+        label: "Account",
+        unit: "percent",
+        remainingPath: "balance.percent",
+      },
+      {
+        kind: "quota",
+        id: "session-tokens",
+        label: "Session Tokens",
+        unit: "tokens",
+        usedPath: "usage.sessionTokens",
+        window: { label: "Recent Session" },
+      },
+    ],
+  }),
+
   "opencode-zen": definePreset({
     label: "OpenCode Zen",
     icon: { kind: "monogram", text: "OZ", color: "#64748B" },
