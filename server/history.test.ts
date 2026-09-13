@@ -5,6 +5,8 @@ import { describe, expect, test } from "vitest";
 import {
   createNodeHistoryAdapters,
   type HistoryAdapters,
+  JUNIE_PROVIDER_ID,
+  collectJunieRows,
   readAgentProviderWindows,
   readUsageHistorySnapshot,
 } from "./history.server";
@@ -19,6 +21,7 @@ const HOME = "/home/tester";
 const CLAUDE_DIR = `${HOME}/.claude/projects/proj`;
 const CODEX_DIR = `${HOME}/.codex/sessions/2026/08/26`;
 const OMP_DIR = `${HOME}/.omp/agent/sessions/-proj`;
+const JUNIE_DIR = `${HOME}/.junie/sessions/task-260912-002503-bmaf`;
 const SCAN_CACHE_PATH = `${HOME}/.paseo/usage-limits/scan-cache.json`;
 const NOW = "2026-08-26T12:30:00.000Z";
 const OMP_REPORTED_COST = 0.422;
@@ -307,6 +310,48 @@ function ompUsageLine(fields: OmpUsageFields): string {
 
 function ompModelChangeLine(timestamp: string, model: string): string {
   return JSON.stringify({ type: "model_change", timestamp, model });
+}
+
+interface JunieUsageFields {
+  model?: string;
+  cost?: number | null;
+  inputTokens?: number;
+  cacheInputTokens?: number;
+  cacheCreateTokens?: number;
+  outputTokens?: number;
+}
+
+interface JunieEventFields {
+  timestampMs?: number;
+  taskId?: string;
+  usages?: JunieUsageFields[];
+  state?: string;
+}
+
+function junieEventLine(fields: JunieEventFields): string {
+  const modelUsage = (fields.usages ?? [{}]).map((u) => ({
+    model: u.model ?? "gpt-4.1-2025-04-14",
+    cost: u.cost === undefined ? 0.002728 : u.cost,
+    inputTokens: u.inputTokens ?? 1360,
+    cacheInputTokens: u.cacheInputTokens ?? 0,
+    cacheCreateTokens: u.cacheCreateTokens ?? 0,
+    outputTokens: u.outputTokens ?? 1,
+    time: 0,
+  }));
+
+  return JSON.stringify({
+    kind: "SessionA2uxEvent",
+    event: {
+      state: fields.state ?? "IN_PROGRESS",
+      agentEvent: {
+        kind: "LlmResponseMetadataEvent",
+        agent: { kind: "MainAgent", id: "main", name: "main", type: "LINEAR" },
+        modelUsage,
+      },
+    },
+    taskId: fields.taskId ?? "task-260912-002503-bmaf",
+    timestampMs: fields.timestampMs ?? 1787746500000,
+  });
 }
 
 function bucketAt(snapshot: UsageHistorySnapshot, start: string): UsageHistoryBucket {
@@ -662,6 +707,166 @@ describe("readUsageHistorySnapshot: Codex rollouts", () => {
     const snapshot = await readUsageHistorySnapshot(PROVIDER_QUERY, harness.adapters);
 
     expect(snapshot.totals.tokens).toBe(5);
+  });
+});
+
+describe("readUsageHistorySnapshot: JetBrains Junie transcripts", () => {
+  test("collectJunieRows extracts UsageRow with correct model, tokens, reported cost and dedupKey", () => {
+    const line = junieEventLine({
+      timestampMs: 1787746500000,
+      taskId: "task-test-1",
+      usages: [
+        {
+          model: "gpt-4.1-2025-04-14",
+          cost: 0.002728,
+          inputTokens: 1360,
+          cacheInputTokens: 50,
+          cacheCreateTokens: 20,
+          outputTokens: 100,
+        },
+      ],
+    });
+
+    const rows = collectJunieRows(line);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toEqual({
+      providerId: JUNIE_PROVIDER_ID,
+      model: "gpt-4.1-2025-04-14",
+      timestampMs: 1787746500000,
+      dedupKey: "junie:task-test-1:gpt-4.1-2025-04-14:1360:100:1787746500000",
+      sidechain: false,
+      breakdown: {
+        uncachedInputTokens: 1360,
+        cachedInputTokens: 50,
+        cacheCreationTokens: 20,
+        cacheCreationLongTtlTokens: 0,
+        outputTokens: 100,
+        reasoningTokens: 0,
+        tokens: 1360 + 50 + 20 + 100,
+        costUsd: 0.002728,
+        cacheSavingsUsd: null,
+      },
+    });
+  });
+
+  test("collectJunieRows handles multiple modelUsage entries in a single event", () => {
+    const line = junieEventLine({
+      timestampMs: 1787746500000,
+      taskId: "task-multi",
+      usages: [
+        { model: "gpt-4.1", inputTokens: 500, outputTokens: 50, cost: 0.001 },
+        { model: "qwen-flash", inputTokens: 200, outputTokens: 20, cost: 0.0002 },
+      ],
+    });
+
+    const rows = collectJunieRows(line);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.model).toBe("gpt-4.1");
+    expect(rows[0]?.breakdown.tokens).toBe(550);
+    expect(rows[1]?.model).toBe("qwen-flash");
+    expect(rows[1]?.breakdown.tokens).toBe(220);
+  });
+
+  test("collectJunieRows ignores non-LlmResponseMetadataEvent lines", () => {
+    const nonLlm = JSON.stringify({
+      kind: "SessionA2uxEvent",
+      event: { state: "IN_PROGRESS", agentEvent: { kind: "OtherEvent" } },
+      taskId: "task-1",
+      timestampMs: 1787746500000,
+    });
+    const malformed = "{ this is not json }";
+    const text = `${nonLlm}\n${malformed}\n`;
+    expect(collectJunieRows(text)).toEqual([]);
+  });
+
+  test("collectJunieRows handles missing cost as null", () => {
+    const line = junieEventLine({
+      timestampMs: 1787746500000,
+      usages: [{ model: "gpt-4.1", cost: null, inputTokens: 100, outputTokens: 10 }],
+    });
+    const rows = collectJunieRows(line);
+    expect(rows[0]?.breakdown.costUsd).toBeNull();
+  });
+
+  test("aggregates Junie events into snapshot with JetBrains Junie provider label and model children", async () => {
+    const harness = createHarness({
+      files: {
+        [`${JUNIE_DIR}/events.jsonl`]: junieEventLine({
+          timestampMs: Date.parse("2026-08-26T12:15:00.000Z"),
+          taskId: "task-260912-002503-bmaf",
+          usages: [
+            {
+              model: "gpt-4.1-2025-04-14",
+              cost: 0.002728,
+              inputTokens: 1360,
+              cacheInputTokens: 0,
+              cacheCreateTokens: 0,
+              outputTokens: 1,
+            },
+          ],
+        }),
+      },
+    });
+
+    const snapshot = await readUsageHistorySnapshot(PROVIDER_QUERY, harness.adapters);
+    const split = breakdown({
+      uncachedInputTokens: 1360,
+      cachedInputTokens: 0,
+      cacheCreationTokens: 0,
+      outputTokens: 1,
+      costUsd: 0.002728,
+    });
+
+    expect(snapshot.series).toEqual([
+      {
+        key: "junie",
+        label: "JetBrains Junie",
+        ...split,
+        children: [{ key: "junie:gpt-4.1-2025-04-14", label: "gpt-4.1-2025-04-14", ...split }],
+      },
+    ]);
+    expect(snapshot.totals).toEqual(split);
+    expect(bucketAt(snapshot, "2026-08-26T12:00:00.000Z")).toEqual({
+      start: "2026-08-26T12:00:00.000Z",
+      ...split,
+      values: [
+        { seriesKey: "junie", parentKey: null, ...split },
+        { seriesKey: "junie:gpt-4.1-2025-04-14", parentKey: "junie", ...split },
+      ],
+    });
+  });
+
+  test("deduplicates identical Junie events across lines", async () => {
+    const line = junieEventLine({
+      timestampMs: Date.parse("2026-08-26T12:15:00.000Z"),
+      taskId: "task-dup",
+      usages: [{ model: "gpt-4.1-2025-04-14", inputTokens: 100, outputTokens: 10, cost: 0.001 }],
+    });
+    const harness = createHarness({
+      files: {
+        [`${JUNIE_DIR}/events.jsonl`]: `${line}\n${line}\n`,
+      },
+    });
+
+    const snapshot = await readUsageHistorySnapshot(PROVIDER_QUERY, harness.adapters);
+    expect(snapshot.totals.tokens).toBe(110);
+    expect(snapshot.totals.costUsd).toBe(0.001);
+  });
+
+  test("discovers custom sessions directory configured via JUNIE_HOME", async () => {
+    const harness = createHarness({
+      env: { JUNIE_HOME: "/opt/custom-junie" },
+      files: {
+        "/opt/custom-junie/sessions/s1/events.jsonl": junieEventLine({
+          timestampMs: Date.parse("2026-08-26T12:15:00.000Z"),
+          usages: [{ model: "gpt-4.1", inputTokens: 50, outputTokens: 5, cost: 0.0005 }],
+        }),
+      },
+    });
+
+    const snapshot = await readUsageHistorySnapshot(PROVIDER_QUERY, harness.adapters);
+    expect(snapshot.totals.tokens).toBe(55);
+    expect(snapshot.series[0]?.label).toBe("JetBrains Junie");
   });
 });
 

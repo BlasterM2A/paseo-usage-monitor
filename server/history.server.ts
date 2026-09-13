@@ -63,6 +63,7 @@ const RANGE_WINDOWS: Record<UsageHistoryRange, RangeWindow> = {
 
 const CLAUDE_PROVIDER_ID = "claude-code";
 const CODEX_PROVIDER_ID = "codex";
+export const JUNIE_PROVIDER_ID = "junie";
 
 /**
  * Paseo drives agents through omp, so the same vendor reaches the user twice:
@@ -77,6 +78,7 @@ const OMP_UNKNOWN_PROVIDER_ID = `${OMP_PROVIDER_PREFIX}${UNKNOWN_VENDOR}`;
 const PROVIDER_LABELS: Record<string, string> = {
   [CLAUDE_PROVIDER_ID]: "Claude Code",
   [CODEX_PROVIDER_ID]: "Codex",
+  [JUNIE_PROVIDER_ID]: "JetBrains Junie",
 };
 
 /** Vendor slugs omp writes today; anything else is title-cased from its slug. */
@@ -92,6 +94,7 @@ const CLAUDE_USAGE_MARKER = '"usage":{';
 const CLAUDE_SYNTHETIC_MODEL = "<synthetic>";
 const CODEX_USAGE_MARKER = '"last_token_usage"';
 const CODEX_CONTEXT_MARKER = '"turn_context"';
+const JUNIE_USAGE_MARKER = '"LlmResponseMetadataEvent"';
 const OMP_USAGE_MARKER = '"usage":{';
 const OMP_MODEL_CHANGE_TYPE = "model_change";
 const OMP_MODEL_CHANGE_MARKER = `"${OMP_MODEL_CHANGE_TYPE}"`;
@@ -199,9 +202,36 @@ const OmpLineSchema = z.object({
     .nullish(),
 });
 
+const JunieModelUsageSchema = z.object({
+  model: OptionalText,
+  cost: OptionalNumber,
+  inputTokens: OptionalNumber,
+  cacheInputTokens: OptionalNumber,
+  cacheCreateTokens: OptionalNumber,
+  outputTokens: OptionalNumber,
+  time: OptionalNumber,
+});
+
+const JunieLineSchema = z.object({
+  taskId: OptionalText,
+  timestampMs: z.number().nullish(),
+  event: z
+    .object({
+      timestampMs: z.number().nullish(),
+      agentEvent: z
+        .object({
+          kind: OptionalText,
+          modelUsage: z.array(JunieModelUsageSchema).nullish(),
+        })
+        .nullish(),
+    })
+    .nullish(),
+});
+
 type ClaudeLine = z.infer<typeof ClaudeLineSchema>;
 type ClaudeUsage = z.infer<typeof ClaudeUsageSchema>;
 type CodexLine = z.infer<typeof CodexLineSchema>;
+type JunieLine = z.infer<typeof JunieLineSchema>;
 type OmpLine = z.infer<typeof OmpLineSchema>;
 
 /**
@@ -274,7 +304,12 @@ export async function readUsageHistorySnapshot(
   const from = to - window.windowMs;
   const cache = createScanCache(adapters);
   const context: ScanContext = { adapters, from, scanErrors: [], cache };
-  const rows = [...scanClaude(context), ...scanCodex(context), ...scanOmp(context)];
+  const rows = [
+    ...scanClaude(context),
+    ...scanCodex(context),
+    ...scanOmp(context),
+    ...scanJunie(context),
+  ];
   cache.flush();
   return buildSnapshot({
     query,
@@ -345,6 +380,10 @@ function scanCodex(context: ScanContext): UsageRow[] {
 
 function scanOmp(context: ScanContext): UsageRow[] {
   return scanFirstWins(ompTranscripts(context), context, collectOmpRows);
+}
+
+function scanJunie(context: ScanContext): UsageRow[] {
+  return scanFirstWins(junieTranscripts(context), context, collectJunieRows);
 }
 
 /** Codex and omp both re-emit an identical line, and the first one wins. */
@@ -445,6 +484,23 @@ function ompSessionRoots(adapters: HistoryAdapters): string[] {
     roots.push(join(dataHome, OMP_XDG_APP_DIR, ...suffix, OMP_SESSIONS_DIR));
   }
   return roots;
+}
+
+function junieTranscripts(context: ScanContext): string[] {
+  const sessionsDir = nonEmpty(context.adapters.env.JUNIE_SESSIONS_DIR);
+  if (sessionsDir !== null) {
+    return [...new Set(listJsonlFiles(sessionsDir, context))];
+  }
+  const configured = splitPaths(context.adapters.env.JUNIE_HOME);
+  const roots =
+    configured.length > 0
+      ? configured.map((entry) => (basename(entry) === "sessions" ? dirname(entry) : entry))
+      : [join(context.adapters.homeDir, ".junie")];
+  const files: string[] = [];
+  for (const root of new Set(roots)) {
+    files.push(...listJsonlFiles(join(root, "sessions"), context));
+  }
+  return [...new Set(files)];
 }
 
 function listJsonlFiles(directory: string, context: ScanContext): string[] {
@@ -754,6 +810,44 @@ function ompAttribution(qualified: string | null, bare: string | null | undefine
     providerId: `${OMP_PROVIDER_PREFIX}${qualified.slice(0, slash)}`,
     model: qualified.slice(slash + 1),
   };
+}
+
+export function collectJunieRows(text: string): UsageRow[] {
+  const rows: UsageRow[] = [];
+  for (const line of text.split("\n")) {
+    if (!line.includes(JUNIE_USAGE_MARKER)) continue;
+    const parsed = JunieLineSchema.safeParse(parseJson(line));
+    if (!parsed.success) continue;
+    const record = parsed.data;
+    const timestampMs = record.timestampMs ?? record.event?.timestampMs;
+    if (timestampMs === null || timestampMs === undefined || Number.isNaN(timestampMs)) continue;
+    const modelUsage = record.event?.agentEvent?.modelUsage;
+    if (!Array.isArray(modelUsage)) continue;
+
+    for (const item of modelUsage) {
+      const model = nonEmpty(item.model) ?? UNKNOWN_MODEL;
+      const inputTokens = item.inputTokens ?? 0;
+      const outputTokens = item.outputTokens ?? 0;
+      const dedupKey = `junie:${record.taskId ?? ""}:${item.model ?? ""}:${inputTokens}:${outputTokens}:${timestampMs}`;
+      rows.push({
+        providerId: JUNIE_PROVIDER_ID,
+        model,
+        timestampMs,
+        dedupKey,
+        sidechain: false,
+        breakdown: scannedBreakdown({
+          uncachedInputTokens: inputTokens,
+          cachedInputTokens: item.cacheInputTokens ?? 0,
+          cacheCreationTokens: item.cacheCreateTokens ?? 0,
+          cacheCreationLongTtlTokens: 0,
+          outputTokens: outputTokens,
+          reasoningTokens: 0,
+          reportedCostUsd: item.cost ?? null,
+        }),
+      });
+    }
+  }
+  return rows;
 }
 
 interface BreakdownInput {

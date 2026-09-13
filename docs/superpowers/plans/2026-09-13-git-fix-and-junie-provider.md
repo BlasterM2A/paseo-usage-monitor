@@ -91,18 +91,18 @@
 - Consumes: `~/.junie/sessions/*/events.jsonl`
 - Produces: `UsageRow` con `providerId: "junie"`, tokens de entrada/salida/caché, coste en USD y desglose temporal.
 
-- [ ] **Step 1: Escribir test que falla en `server/history.test.ts`**
+- [x] **Step 1: Escribir test que falla en `server/history.test.ts`**
   Crear fixture con eventos `LlmResponseMetadataEvent` de Junie y verificar que `collectJunieRows` extrae los tokens, coste y modelo correctos.
 
-- [ ] **Step 2: Implementar escaneo y parsing de Junie en `server/history.server.ts`**
+- [x] **Step 2: Implementar escaneo y parsing de Junie en `server/history.server.ts`**
   * Definir `JUNIE_PROVIDER_ID = "junie"`.
   * Añadir `join(adapters.homeDir, ".junie", "sessions")` a los directorios de búsqueda de sesiones.
   * Implementar `collectJunieRows(text: string): UsageRow[]` para procesar eventos `LlmResponseMetadataEvent`.
 
-- [ ] **Step 3: Ejecutar tests**
+- [x] **Step 3: Ejecutar tests**
   `npm test -- server/history.test.ts`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
   `git commit -am "feat(history): add JetBrains Junie token usage history parser"`
 
 ---
