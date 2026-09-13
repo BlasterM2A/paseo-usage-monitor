@@ -845,6 +845,21 @@ export async function loadStoredCredential(signal: AbortSignal): Promise<Antigra
       if (cause instanceof AntigravityProbeError && cause.message.includes("locked keyring")) {
         throw cause;
       }
+      const tokenFile = join(homedir(), ".gemini", "antigravity-cli", "antigravity-oauth-token");
+      if (existsSync(tokenFile)) {
+        try {
+          const fileData = JSON.parse(readFileSync(tokenFile, "utf8"));
+          if (fileData && typeof fileData.token === "string" && fileData.token.trim()) {
+            return {
+              accessToken: fileData.token.trim(),
+              refreshToken: null,
+              expiresAtMs: null,
+            };
+          }
+        } catch {
+          // fall through to error below
+        }
+      }
       const message = cause instanceof Error ? cause.message : String(cause);
       throw new AntigravityProbeError(
         `Secret Service is unavailable on Linux (${message}). Ensure a keyring daemon is running, run \`agy login\`, or set ANTIGRAVITY_TOKEN.`,
@@ -854,6 +869,21 @@ export async function loadStoredCredential(signal: AbortSignal): Promise<Antigra
   }
 
   if (raw === null) {
+    const tokenFile = join(homedir(), ".gemini", "antigravity-cli", "antigravity-oauth-token");
+    if (existsSync(tokenFile)) {
+      try {
+        const fileData = JSON.parse(readFileSync(tokenFile, "utf8"));
+        if (fileData && typeof fileData.token === "string" && fileData.token.trim()) {
+          return {
+            accessToken: fileData.token.trim(),
+            refreshToken: null,
+            expiresAtMs: null,
+          };
+        }
+      } catch {
+        // fall through
+      }
+    }
     throw new AntigravityProbeError(
       process.platform === "linux"
         ? "no stored Antigravity credential found in Secret Service (service=gemini, username=antigravity); run `agy login` or set ANTIGRAVITY_TOKEN"
