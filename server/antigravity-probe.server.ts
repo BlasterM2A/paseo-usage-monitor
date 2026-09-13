@@ -817,19 +817,47 @@ async function readKeychainItem(service: string, account: string): Promise<strin
 }
 
 export async function loadStoredCredential(signal: AbortSignal): Promise<AntigravityCredential> {
-  const raw =
-    process.platform === "darwin"
-      ? await readKeychainItem(KEYRING_SERVICE, KEYRING_ACCOUNT)
-      : process.platform === "win32"
-        ? await readWindowsCredentialItem(`${KEYRING_SERVICE}:${KEYRING_ACCOUNT}`)
-        : await readSecretServiceItem(
-            { service: KEYRING_SERVICE, username: KEYRING_ACCOUNT },
-            signal,
-          );
+  const envToken = process.env.ANTIGRAVITY_TOKEN?.trim();
+  if (envToken) {
+    const parsed = parseStoredCredential(envToken);
+    if (parsed !== null) {
+      return parsed;
+    }
+    return {
+      accessToken: envToken,
+      refreshToken: null,
+      expiresAtMs: null,
+    };
+  }
+
+  let raw: string | null = null;
+  if (process.platform === "darwin") {
+    raw = await readKeychainItem(KEYRING_SERVICE, KEYRING_ACCOUNT);
+  } else if (process.platform === "win32") {
+    raw = await readWindowsCredentialItem(`${KEYRING_SERVICE}:${KEYRING_ACCOUNT}`);
+  } else {
+    try {
+      raw = await readSecretServiceItem(
+        { service: KEYRING_SERVICE, username: KEYRING_ACCOUNT },
+        signal,
+      );
+    } catch (cause) {
+      if (cause instanceof AntigravityProbeError && cause.message.includes("locked keyring")) {
+        throw cause;
+      }
+      const message = cause instanceof Error ? cause.message : String(cause);
+      throw new AntigravityProbeError(
+        `Secret Service is unavailable on Linux (${message}). Ensure a keyring daemon is running, run \`agy login\`, or set ANTIGRAVITY_TOKEN.`,
+        { cause },
+      );
+    }
+  }
 
   if (raw === null) {
     throw new AntigravityProbeError(
-      "no stored Antigravity credential (keyring item service=gemini, account=antigravity); sign in with Antigravity or `agy` first",
+      process.platform === "linux"
+        ? "no stored Antigravity credential found in Secret Service (service=gemini, username=antigravity); run `agy login` or set ANTIGRAVITY_TOKEN"
+        : "no stored Antigravity credential (keyring item service=gemini, account=antigravity); sign in with Antigravity or `agy` first",
     );
   }
   const credential = parseStoredCredential(raw);
@@ -1151,12 +1179,27 @@ async function acquireAccessToken(deadline: ProbeDeadline): Promise<string> {
     return memoizedAccessToken.token;
   }
 
-  const credential = await runPhase(
-    deadline,
-    "reading the credential from the keyring",
-    PHASE_KEYRING_MS,
-    (signal) => loadStoredCredential(signal),
-  );
+  let credential: AntigravityCredential;
+  try {
+    credential = await runPhase(
+      deadline,
+      "reading the credential from the keyring",
+      PHASE_KEYRING_MS,
+      (signal) => loadStoredCredential(signal),
+    );
+  } catch (error) {
+    if (
+      process.platform === "linux" &&
+      error instanceof AntigravityProbeError &&
+      error.message.includes("reading the credential from the keyring timed out")
+    ) {
+      throw new AntigravityProbeError(
+        `${error.message}. Secret Service D-Bus connection timed out. Ensure a keyring daemon is running, run \`agy login\`, or set ANTIGRAVITY_TOKEN.`,
+        { cause: error },
+      );
+    }
+    throw error;
+  }
 
   if (isAccessTokenUsable(credential, Date.now())) {
     return credential.accessToken as string;

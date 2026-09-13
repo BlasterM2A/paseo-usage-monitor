@@ -7,6 +7,7 @@ import {
   findOAuthClientMatches,
   isAccessTokenUsable,
   isOAuthCacheFresh,
+  loadStoredCredential,
   mapQuotaSummary,
   parseStoredCredential,
   readTierId,
@@ -627,3 +628,63 @@ describe("readTierId", () => {
     expect(readTierLabel(null)).toBeNull();
   });
 });
+
+describe("loadStoredCredential", () => {
+  test("uses ANTIGRAVITY_TOKEN directly as an access token", async () => {
+    const previous = process.env.ANTIGRAVITY_TOKEN;
+    try {
+      process.env.ANTIGRAVITY_TOKEN = "test-token-12345";
+      const cred = await loadStoredCredential(new AbortController().signal);
+      expect(cred).toEqual({
+        accessToken: "test-token-12345",
+        refreshToken: null,
+        expiresAtMs: null,
+      });
+    } finally {
+      if (previous === undefined) {
+        delete process.env.ANTIGRAVITY_TOKEN;
+      } else {
+        process.env.ANTIGRAVITY_TOKEN = previous;
+      }
+    }
+  });
+
+  test("parses ANTIGRAVITY_TOKEN when formatted as stored JSON", async () => {
+    const previous = process.env.ANTIGRAVITY_TOKEN;
+    try {
+      process.env.ANTIGRAVITY_TOKEN = STORED_CREDENTIAL;
+      const cred = await loadStoredCredential(new AbortController().signal);
+      expect(cred).toEqual({
+        accessToken: "ya29.recorded-access-token",
+        refreshToken: "1//recorded-refresh-token",
+        expiresAtMs: Date.parse("2026-08-26T12:44:50.424+01:00"),
+      });
+    } finally {
+      if (previous === undefined) {
+        delete process.env.ANTIGRAVITY_TOKEN;
+      } else {
+        process.env.ANTIGRAVITY_TOKEN = previous;
+      }
+    }
+  });
+
+  test.skipIf(process.platform !== "linux")(
+    "gives a clear notice suggesting ANTIGRAVITY_TOKEN when Secret Service is unavailable",
+    async () => {
+      const previousToken = process.env.ANTIGRAVITY_TOKEN;
+      const previousBus = process.env.DBUS_SESSION_BUS_ADDRESS;
+      try {
+        delete process.env.ANTIGRAVITY_TOKEN;
+        process.env.DBUS_SESSION_BUS_ADDRESS = "unix:path=/tmp/non-existent-bus-socket";
+        await expect(loadStoredCredential(new AbortController().signal)).rejects.toThrow(
+          /Secret Service is unavailable on Linux.*run `agy login`, or set ANTIGRAVITY_TOKEN/,
+        );
+      } finally {
+        if (previousToken !== undefined) process.env.ANTIGRAVITY_TOKEN = previousToken;
+        if (previousBus !== undefined) process.env.DBUS_SESSION_BUS_ADDRESS = previousBus;
+        else delete process.env.DBUS_SESSION_BUS_ADDRESS;
+      }
+    },
+  );
+});
+

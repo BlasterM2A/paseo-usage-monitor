@@ -63,19 +63,19 @@
 - Consumes: `process.env.ANTIGRAVITY_TOKEN`
 - Produces: Probe de Antigravity con fallback de token y presets de catálogo actualizados.
 
-- [ ] **Step 1: Añadir soporte para `ANTIGRAVITY_TOKEN` en `server/antigravity-probe.server.ts`**
+- [x] **Step 1: Añadir soporte para `ANTIGRAVITY_TOKEN` en `server/antigravity-probe.server.ts`**
   En la resolución de credenciales de Antigravity, comprobar primero `process.env.ANTIGRAVITY_TOKEN` antes de llamar a Secret Service / D-Bus.
 
-- [ ] **Step 2: Actualizar descripciones en `shared/presets.shared.ts`**
+- [x] **Step 2: Actualizar descripciones en `shared/presets.shared.ts`**
   Actualizar las descripciones de `antigravity` y `github-copilot` para eliminar el prefijo `Unverified: ` y describir su compatibilidad verificada en Linux/macOS.
 
-- [ ] **Step 3: Actualizar tests en `server/config-store.test.ts`**
+- [x] **Step 3: Actualizar tests en `server/config-store.test.ts`**
   Ajustar las aserciones de prueba que verificaban el patrón antiguo `Unverified: `.
 
-- [ ] **Step 4: Ejecutar tests**
+- [x] **Step 4: Ejecutar tests**
   `npm test -- server/antigravity-probe.test.ts server/config-store.test.ts`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
   `git commit -am "feat(presets): improve Antigravity Linux fallback and verify preset descriptions"`
 
 ---

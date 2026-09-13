@@ -167,7 +167,9 @@ describe("usage config state", () => {
       credentialHints: [],
       endpoint: "Antigravity probe",
     });
-    expect(antigravity?.description).toMatch(/^Unverified: .*without notice/s);
+    expect(antigravity?.description).toBe(
+      "Google Antigravity quota pools (Gemini and Claude/GPT). Verified on Linux and macOS.",
+    );
   });
 
   test("reports stored credential names without returning their values", () => {

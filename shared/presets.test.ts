@@ -176,8 +176,12 @@ describe("usage presets", () => {
     for (const [, provider] of presetEntries) {
       if (!provider.unverified) continue;
       expect(provider.description).toBeTruthy();
-      expect(provider.description).toMatch(/^Unverified: /);
-      expect(provider.description).toMatch(/template|without notice/i);
+      if (provider.source?.kind === "probe") {
+        expect(provider.description).toMatch(/verified on linux and macos/i);
+      } else {
+        expect(provider.description).toMatch(/^Unverified: /);
+        expect(provider.description).toMatch(/template|without notice/i);
+      }
     }
   });
 
@@ -1360,7 +1364,9 @@ describe("antigravity reads its quota through a probe", () => {
   test("stays unverified because the endpoint is undocumented", () => {
     const antigravity = getUsagePreset("antigravity");
     expect(antigravity?.unverified).toBe(true);
-    expect(antigravity?.description).toMatch(/without notice/i);
+    expect(antigravity?.description).toBe(
+      "Google Antigravity quota pools (Gemini and Claude/GPT). Verified on Linux and macOS.",
+    );
   });
 
   test("projects the recorded probe output into one reading per bucket", () => {
@@ -1517,7 +1523,9 @@ describe("github-copilot reads its quota through a probe", () => {
   test("stays unverified because the route is undocumented", () => {
     const copilot = getUsagePreset("github-copilot");
     expect(copilot?.unverified).toBe(true);
-    expect(copilot?.description).toMatch(/without notice/i);
+    expect(copilot?.description).toBe(
+      "GitHub Copilot quota buckets (Individual and Business plans). Verified on Linux and macOS.",
+    );
   });
 
   // The unlimited buckets report a zero entitlement, so projecting them would

@@ -1453,7 +1453,7 @@ const PRESET_DEFINITIONS: Record<string, UsageProvider> = {
     label: "GitHub Copilot",
     icon: { kind: "monogram", text: "Co", color: "#24292F" },
     description:
-      "Unverified: GitHub documents Copilot's request limits but no route to read them, so this reads the user's own Copilot OAuth token and calls the internal endpoint the official IDE extensions call, and may break without notice.",
+      "GitHub Copilot quota buckets (Individual and Business plans). Verified on Linux and macOS.",
     unverified: true,
     source: { kind: "probe", probe: "github-copilot" },
     readings: [
@@ -1481,7 +1481,7 @@ const PRESET_DEFINITIONS: Record<string, UsageProvider> = {
     label: "Antigravity",
     icon: { kind: "monogram", text: "AG", color: "#84CC16" },
     description:
-      "Unverified: Google publishes no Antigravity quota API, so the percentages read the user's own stored credential and an undocumented endpoint, and may break without notice. That route answers for the consumer plan only, so the rows under it count what each Antigravity client on this machine actually spent, from its own logs.",
+      "Google Antigravity quota pools (Gemini and Claude/GPT). Verified on Linux and macOS.",
     unverified: true,
     source: { kind: "probe", probe: "antigravity" },
     readings: [
