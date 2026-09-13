@@ -1,4 +1,5 @@
-import type { PaseoApi } from "@getpaseo/client";
+import type { PluginHandlerContext } from "@getpaseo/plugin/server";
+type PaseoApi = PluginHandlerContext["paseo"];
 import { createCodexBankedResetService } from "./codex-reset.server";
 import { createNodeConfigAdapters, loadUsageConfig, usageConfigPath } from "./config.server";
 import {

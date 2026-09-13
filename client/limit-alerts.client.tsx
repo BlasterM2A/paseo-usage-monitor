@@ -1,4 +1,3 @@
-import type { PaseoApi } from "@getpaseo/client";
 import type { PluginCleanup, PluginTheme } from "@getpaseo/plugin";
 import {
   type PluginClientContext,
@@ -8,7 +7,14 @@ import {
   useRpc,
 } from "@getpaseo/plugin/client";
 import { Icon, Modal, TextInput, useToast } from "@getpaseo/plugin/client/react-native";
-import type { AgentTimelineItem } from "@getpaseo/protocol/agent-types";
+
+type PaseoApi = ReturnType<typeof usePaseo>;
+
+export interface AgentTimelineItem {
+  type: string;
+  message?: string;
+  text?: string;
+}
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Linking, Pressable, Text, type TextStyle, View, type ViewStyle } from "react-native";
@@ -117,7 +123,7 @@ export function limitAlertTimelineData(
   if (phase !== "complete") return null;
   const text =
     item.type === "error" ? item.message : item.type === "assistant_message" ? item.text : null;
-  if (text === null) return null;
+  if (!text) return null;
   const detection = detectUsageLimit(text, now);
   if (detection === null) return null;
   return {

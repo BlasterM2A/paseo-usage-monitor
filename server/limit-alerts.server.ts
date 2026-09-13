@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import type { PaseoApi } from "@getpaseo/client";
-import type { PluginLifecycleEvents } from "@getpaseo/plugin/server";
+import type { PluginHandlerContext, PluginLifecycleEvents } from "@getpaseo/plugin/server";
+type PaseoApi = PluginHandlerContext["paseo"];
 import {
   LimitAlertSchema,
   LimitAlertSettingsSchema,

@@ -31,22 +31,22 @@
 - Consumes: `@getpaseo/plugin/server` (`PluginHandlerContext`), `@getpaseo/plugin/client` (`usePaseo`)
 - Produces: Módulos cliente y servidor 100% conformes con el compilador de Paseo 0.8 sin dependencias externas de tipos no provistas.
 
-- [ ] **Step 1: Reemplazar importación de `@getpaseo/client` en `server/handlers.server.ts`**
+- [x] **Step 1: Reemplazar importación de `@getpaseo/client` en `server/handlers.server.ts`**
   Reemplazar `import type { PaseoApi } from "@getpaseo/client";` por `import type { PluginHandlerContext } from "@getpaseo/plugin/server"; type PaseoApi = PluginHandlerContext["paseo"];`.
 
-- [ ] **Step 2: Reemplazar importación de `@getpaseo/client` en `server/limit-alerts.server.ts`**
+- [x] **Step 2: Reemplazar importación de `@getpaseo/client` en `server/limit-alerts.server.ts`**
   Reemplazar `import type { PaseoApi } from "@getpaseo/client";` por `import type { PluginHandlerContext } from "@getpaseo/plugin/server"; type PaseoApi = PluginHandlerContext["paseo"];`.
 
-- [ ] **Step 3: Reemplazar importaciones en `client/limit-alerts.client.tsx`**
+- [x] **Step 3: Reemplazar importaciones en `client/limit-alerts.client.tsx`**
   Reemplazar importación de `PaseoApi` por `type PaseoApi = ReturnType<typeof usePaseo>;` y sustituir la importación de `AgentTimelineItem` por una interfaz local estructural `{ type: string; message?: string; text?: string; [key: string]: unknown }`.
 
-- [ ] **Step 4: Añadir directiva `build` en `paseo-plugin.json`**
+- [x] **Step 4: Añadir directiva `build` en `paseo-plugin.json`**
   Añadir `"build": [["npm", "install", "--omit=dev"]]`.
 
-- [ ] **Step 5: Ejecutar validación de tipos y tests**
+- [x] **Step 5: Ejecutar validación de tipos y tests**
   Correr `npm run typecheck && npm test`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
   `git commit -am "fix(plugin): comply with Paseo 0.8 module boundaries and add build step in manifest"`
 
 ---
