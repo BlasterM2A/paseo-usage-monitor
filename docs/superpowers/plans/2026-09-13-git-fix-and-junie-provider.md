@@ -146,14 +146,14 @@
 - Modify: `README.md`
 - Test: `npm test && npm run typecheck`
 
-- [ ] **Step 1: Actualizar `README.md`**
+- [x] **Step 1: Actualizar `README.md`**
   Documentar la integración de Junie y los proveedores verificados.
 
-- [ ] **Step 2: Suite completa de pruebas**
+- [x] **Step 2: Suite completa de pruebas**
   Ejecutar `npm test && npm run typecheck`.
 
-- [ ] **Step 3: Git Push a GitHub**
+- [x] **Step 3: Git Push a GitHub**
   `git push origin main`.
 
-- [ ] **Step 4: Verificación en Paseo**
+- [x] **Step 4: Verificación en Paseo**
   Recargar el plugin en Paseo (`paseo plugin reload usage-monitor`) y validar que las tarjetas e historial de Junie, Antigravity y Copilot estén operativas.

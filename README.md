@@ -41,8 +41,10 @@ It plots **Work** (input + output tokens) by default, with Cached, Total and Cos
 Plugin code is trusted and unsandboxed. The server half runs in a subprocess with full access to the daemon machine — its files, processes, credentials, and network. Read a plugin before you install it.
 
 ```bash
-paseo plugin add ABorakati/paseo-usage-monitor
+paseo plugin add BlasterM2A/paseo-usage-monitor
 ```
+
+> **Note:** Upstream repository is [`ABorakati/paseo-usage-monitor`](https://github.com/ABorakati/paseo-usage-monitor). The `BlasterM2A/paseo-usage-monitor` fork provides Paseo 0.8 module boundary fixes, JetBrains Junie integration, and robust Linux Antigravity probe support.
 
 That clones the repository, compiles it on the daemon, and reaches **running** in `paseo plugin ls` with no package manager and no install scripts. Git installs track `main`; `paseo plugin status` shows when the upstream repository has moved and `paseo plugin update usage-monitor` pulls it.
 
@@ -64,7 +66,7 @@ Once running, the plugin shows up in:
 To work on the plugin itself, clone the checkout and register the directory instead, so the daemon runs your working tree:
 
 ```bash
-git clone https://github.com/ABorakati/paseo-usage-monitor.git
+git clone https://github.com/BlasterM2A/paseo-usage-monitor.git
 cd paseo-usage-monitor
 npm install && npm run typecheck
 paseo plugin install .
@@ -78,15 +80,23 @@ paseo plugin install .
 
 ## Supported providers
 
-34 presets ship with the plugin, in five kinds. Which kind you get is the vendor's decision, not this plugin's: an ordinary API key that can read its own balance is the exception, and most frontier labs gate usage behind an admin credential or expose it only in per-request headers.
+35 presets ship with the plugin, in five kinds. Which kind you get is the vendor's decision, not this plugin's: an ordinary API key that can read its own balance is the exception, and most frontier labs gate usage behind an admin credential or expose it only in per-request headers.
 
-| Kind             | What it reads                                                                          | Presets                                                                                                                                                                                                                            |
-| ---------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Subscription** | Consumption inside a resetting window, from the CLI's own login or a plan-specific key | `claude`, `claude-statusline`, `codex`, `cursor`, `grok`, `github-copilot`, `kimi`, `minimax`, `minimax-cn`, `zai-coding-plan` (alias `zai`), `zhipuai-coding-plan`, `synthetic`, `opencode-go`, `chutes`, `zenmux`, `antigravity` |
-| **Balance**      | Money or credits left on an ordinary API key                                           | `deepseek`, `moonshot`, `moonshot-cn`, `siliconflow`, `siliconflow-cn`, `stepfun-ai`, `stepfun`, `novita`, `deepinfra`, `venice`, `xai`, `nano-gpt`, `poe`                                                                         |
-| **Aggregator**   | Spend against a cap, per key or per account                                            | `openrouter`, `openrouter-credits`, `vercel`                                                                                                                                                                                       |
-| **Pricing band** | Which rate is in force now, from a schedule and no request                             | `deepseek-rate`                                                                                                                                                                                                                    |
-| **Template**     | A shape to repoint once the vendor ships an endpoint                                   | `opencode-zen`                                                                                                                                                                                                                     |
+| Kind                      | What it reads                                                                                                      | Presets                                                                                                                                                                                                                                      |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Subscription / Probes** | Consumption inside a resetting window or local session telemetry, from the CLI's own login, plan key, or local OS probe | `claude`, `claude-statusline`, `codex`, `cursor`, `grok`, `github-copilot`, `kimi`, `minimax`, `minimax-cn`, `zai-coding-plan` (alias `zai`), `zhipuai-coding-plan`, `synthetic`, `opencode-go`, `chutes`, `zenmux`, `antigravity`, `junie` |
+| **Balance**               | Money or credits left on an ordinary API key                                                                       | `deepseek`, `moonshot`, `moonshot-cn`, `siliconflow`, `siliconflow-cn`, `stepfun-ai`, `stepfun`, `novita`, `deepinfra`, `venice`, `xai`, `nano-gpt`, `poe`                                                                                   |
+| **Aggregator**            | Spend against a cap, per key or per account                                                                        | `openrouter`, `openrouter-credits`, `vercel`                                                                                                                                                                                                 |
+| **Pricing band**          | Which rate is in force now, from a schedule and no request                                                         | `deepseek-rate`                                                                                                                                                                                                                              |
+| **Template**              | A shape to repoint once the vendor ships an endpoint                                                               | `opencode-zen`                                                                                                                                                                                                                               |
+
+### Verified probe providers
+
+While standard providers query remote HTTP endpoints, local coding harnesses often store sessions or credentials in local databases, keyrings, or files. The following probe providers are actively verified:
+
+- **JetBrains Junie (`junie`)** — **Verified**. Inspects local session events (`~/.junie/sessions/*/events.jsonl`) and credentials (`~/.junie/secure_credentials.json`). Live probe reports active session status, token burn, or balance exhaustion warnings (`ExitPaymentRequired`). Historical parser tracks work tokens and cost per model.
+- **Antigravity (`antigravity`)** — **Verified on Linux and macOS**. Queries the Antigravity Language Server / secret store, with fallback support for the `ANTIGRAVITY_TOKEN` environment variable on headless or D-Bus restricted Linux environments.
+- **GitHub Copilot (`github-copilot`)** — **Verified on Linux and macOS**. Discovers token and quota request buckets from GitHub Copilot CLI or IDE extension auth files (`~/.config/github-copilot/hosts.json` or `COPILOT_GITHUB_TOKEN`).
 
 Every endpoint, credential chain and caveat is in [Presets](docs/PRESETS.md), along with the list of vendors that cannot be read and why. Anything with a JSON endpoint, a CLI that prints JSON, or a file on disk can be added as a hand-written provider without a code change; see [Configuration](docs/CONFIGURATION.md) and [Recipes](docs/RECIPES.md).
 
@@ -192,7 +202,7 @@ From the callout you can:
 - **Hand off** — start a new agent on another provider, in the same working directory, with a prompt that repeats the last request.
 - **Dismiss** — close the callout without acting.
 
-The daemon reads the vendor from the agent's provider and, on a harness that runs many vendors, from the model id (`deepseek/deepseek-flash`, `moonshot/kimi-k3`, `openrouter/anthropic/claude-sonnet-4`). Every preset the plugin tracks is covered: Claude, Codex, GitHub Copilot, Cursor, Grok, Antigravity, Kimi, Z.ai, Zhipu, MiniMax, Synthetic, OpenCode Go, Chutes, ZenMux, DeepSeek, Moonshot, SiliconFlow, StepFun, Novita, DeepInfra, Venice, xAI, NanoGPT, Poe, OpenRouter, Vercel and OpenCode Zen, plus the Anthropic and OpenAI APIs behind an `anthropic/…` or `openai/…` model. A vendor whose console page is not published gets a callout with no link rather than a guessed one.
+The daemon reads the vendor from the agent's provider and, on a harness that runs many vendors, from the model id (`deepseek/deepseek-flash`, `moonshot/kimi-k3`, `openrouter/anthropic/claude-sonnet-4`). Every preset the plugin tracks is covered: Claude, Codex, GitHub Copilot, Cursor, Grok, Antigravity, Junie, Kimi, Z.ai, Zhipu, MiniMax, Synthetic, OpenCode Go, Chutes, ZenMux, DeepSeek, Moonshot, SiliconFlow, StepFun, Novita, DeepInfra, Venice, xAI, NanoGPT, Poe, OpenRouter, Vercel and OpenCode Zen, plus the Anthropic and OpenAI APIs behind an `anthropic/…` or `openai/…` model. A vendor whose console page is not published gets a callout with no link rather than a guessed one.
 
 ### Alert settings
 
@@ -233,7 +243,7 @@ To opt out, create the file. Defaults apply only when it is absent, so any file 
 | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
 | [Configuration](docs/CONFIGURATION.md)     | `usage-limits.json`: the provider map, provider entries, preset merge rules, readings, sources, JSON paths                 |
 | [Credentials](docs/CREDENTIALS.md)         | Credential chains, expiry, and reading Claude quota without a token                                                        |
-| [Presets](docs/PRESETS.md)                 | The 34 presets, per-preset caveats, what is unverified, what is not supported, Antigravity, GitHub Copilot, rate limits    |
+| [Presets](docs/PRESETS.md)                 | The 35 presets, per-preset caveats, what is unverified, what is not supported, Antigravity, GitHub Copilot, Junie, rate limits |
 | [Multiple accounts](docs/MULTI_ACCOUNT.md) | Two logins on one provider: arbitrary ids, the Provider id field, per-id secrets, a two-Codex recipe                       |
 | [Recipes](docs/RECIPES.md)                 | Complete `usage-limits.json` files: env keys, hand-written HTTP, a CLI command, a schedule-only rate, an `each` projection |
 | [Usage history](docs/HISTORY.md)           | Where the token history comes from, buckets, dedup, colour, metrics, cost, scan failures                                   |
