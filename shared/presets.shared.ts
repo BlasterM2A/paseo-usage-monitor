@@ -1454,7 +1454,6 @@ const PRESET_DEFINITIONS: Record<string, UsageProvider> = {
     icon: { kind: "monogram", text: "Co", color: "#24292F" },
     description:
       "GitHub Copilot quota buckets (Individual and Business plans). Verified on Linux and macOS.",
-    unverified: true,
     source: { kind: "probe", probe: "github-copilot" },
     readings: [
       {
@@ -1482,7 +1481,6 @@ const PRESET_DEFINITIONS: Record<string, UsageProvider> = {
     icon: { kind: "monogram", text: "AG", color: "#84CC16" },
     description:
       "Google Antigravity quota pools (Gemini and Claude/GPT). Verified on Linux and macOS.",
-    unverified: true,
     source: { kind: "probe", probe: "antigravity" },
     readings: [
       /**
@@ -1558,7 +1556,6 @@ const PRESET_DEFINITIONS: Record<string, UsageProvider> = {
     icon: { kind: "monogram", text: "Ju", color: "#6B7280" },
     description:
       "JetBrains Junie AI subscription and session tokens. Verified on Linux and macOS.",
-    unverified: true,
     source: { kind: "probe", probe: "junie" },
     readings: [
       {

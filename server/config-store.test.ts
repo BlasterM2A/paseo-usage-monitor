@@ -162,7 +162,7 @@ describe("usage config state", () => {
     expect(antigravity).toMatchObject({
       id: "antigravity",
       label: "Antigravity",
-      unverified: true,
+      unverified: false,
       credentialNames: [],
       credentialHints: [],
       endpoint: "Antigravity probe",

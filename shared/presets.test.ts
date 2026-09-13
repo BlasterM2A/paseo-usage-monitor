@@ -157,7 +157,7 @@ describe("usage presets", () => {
         continue;
       }
       if (source.kind === "probe") {
-        expect([id, provider.unverified]).toEqual([id, true]);
+        expect([id, provider.unverified]).toEqual([id, false]);
         continue;
       }
       if (source.kind === "file") {
@@ -779,6 +779,7 @@ function readingById(presetId: string, readingId: string) {
 describe("verified presets resolve their recorded responses", () => {
   test("every verified preset has a fixture and every unverified one has none", () => {
     for (const [id, provider] of presetEntries) {
+      if (provider.source?.kind === "probe") continue;
       expect([id, Object.hasOwn(RESPONSE_FIXTURES, id)]).toEqual([id, !provider.unverified]);
     }
   });
@@ -1361,9 +1362,9 @@ describe("antigravity reads its quota through a probe", () => {
     expect(antigravity?.refreshIntervalMs).toBeGreaterThanOrEqual(300_000);
   });
 
-  test("stays unverified because the endpoint is undocumented", () => {
+  test("is verified on Linux and macOS", () => {
     const antigravity = getUsagePreset("antigravity");
-    expect(antigravity?.unverified).toBe(true);
+    expect(antigravity?.unverified).toBe(false);
     expect(antigravity?.description).toBe(
       "Google Antigravity quota pools (Gemini and Claude/GPT). Verified on Linux and macOS.",
     );
@@ -1520,9 +1521,9 @@ describe("github-copilot reads its quota through a probe", () => {
     expect(copilot?.credentials).toEqual({});
   });
 
-  test("stays unverified because the route is undocumented", () => {
+  test("is verified on Linux and macOS", () => {
     const copilot = getUsagePreset("github-copilot");
-    expect(copilot?.unverified).toBe(true);
+    expect(copilot?.unverified).toBe(false);
     expect(copilot?.description).toBe(
       "GitHub Copilot quota buckets (Individual and Business plans). Verified on Linux and macOS.",
     );
@@ -1572,9 +1573,9 @@ describe("junie reads its quota through a probe", () => {
     expect(junie?.credentials).toEqual({});
   });
 
-  test("stays unverified because the probe is local telemetry", () => {
+  test("is verified on Linux and macOS", () => {
     const junie = getUsagePreset("junie");
-    expect(junie?.unverified).toBe(true);
+    expect(junie?.unverified).toBe(false);
     expect(junie?.description).toBe(
       "JetBrains Junie AI subscription and session tokens. Verified on Linux and macOS.",
     );

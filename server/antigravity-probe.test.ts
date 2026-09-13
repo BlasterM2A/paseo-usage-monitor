@@ -669,18 +669,49 @@ describe("loadStoredCredential", () => {
   });
 
   test.skipIf(process.platform !== "linux")(
-    "gives a clear notice suggesting ANTIGRAVITY_TOKEN when Secret Service is unavailable",
+    "gives a clear notice suggesting ANTIGRAVITY_TOKEN when Secret Service is unavailable and no token file exists",
     async () => {
       const previousToken = process.env.ANTIGRAVITY_TOKEN;
+      const previousFile = process.env.ANTIGRAVITY_TOKEN_FILE;
       const previousBus = process.env.DBUS_SESSION_BUS_ADDRESS;
       try {
         delete process.env.ANTIGRAVITY_TOKEN;
+        process.env.ANTIGRAVITY_TOKEN_FILE = "/tmp/non-existent-token-file";
         process.env.DBUS_SESSION_BUS_ADDRESS = "unix:path=/tmp/non-existent-bus-socket";
         await expect(loadStoredCredential(new AbortController().signal)).rejects.toThrow(
           /Secret Service is unavailable on Linux.*run `agy login`, or set ANTIGRAVITY_TOKEN/,
         );
       } finally {
         if (previousToken !== undefined) process.env.ANTIGRAVITY_TOKEN = previousToken;
+        if (previousFile !== undefined) process.env.ANTIGRAVITY_TOKEN_FILE = previousFile;
+        else delete process.env.ANTIGRAVITY_TOKEN_FILE;
+        if (previousBus !== undefined) process.env.DBUS_SESSION_BUS_ADDRESS = previousBus;
+        else delete process.env.DBUS_SESSION_BUS_ADDRESS;
+      }
+    },
+  );
+
+  test.skipIf(process.platform !== "linux")(
+    "falls back to ANTIGRAVITY_TOKEN_FILE when Secret Service is unavailable",
+    async () => {
+      const previousToken = process.env.ANTIGRAVITY_TOKEN;
+      const previousFile = process.env.ANTIGRAVITY_TOKEN_FILE;
+      const previousBus = process.env.DBUS_SESSION_BUS_ADDRESS;
+      const tempPath = `/tmp/test-token-${Date.now()}.json`;
+      const { writeFileSync, unlinkSync } = await import("node:fs");
+      writeFileSync(tempPath, STORED_CREDENTIAL, "utf8");
+      try {
+        delete process.env.ANTIGRAVITY_TOKEN;
+        process.env.ANTIGRAVITY_TOKEN_FILE = tempPath;
+        process.env.DBUS_SESSION_BUS_ADDRESS = "unix:path=/tmp/non-existent-bus-socket";
+        const cred = await loadStoredCredential(new AbortController().signal);
+        expect(cred.accessToken).toBe("ya29.recorded-access-token");
+        expect(cred.refreshToken).toBe("1//recorded-refresh-token");
+      } finally {
+        try { unlinkSync(tempPath); } catch {}
+        if (previousToken !== undefined) process.env.ANTIGRAVITY_TOKEN = previousToken;
+        if (previousFile !== undefined) process.env.ANTIGRAVITY_TOKEN_FILE = previousFile;
+        else delete process.env.ANTIGRAVITY_TOKEN_FILE;
         if (previousBus !== undefined) process.env.DBUS_SESSION_BUS_ADDRESS = previousBus;
         else delete process.env.DBUS_SESSION_BUS_ADDRESS;
       }

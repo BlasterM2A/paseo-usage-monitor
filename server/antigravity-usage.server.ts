@@ -289,11 +289,31 @@ export function createNodeAntigravityUsageAdapters(): AntigravityUsageAdapters {
 }
 
 /**
- * The quota probe still decides whether this provider is healthy: a keyring
- * with no Antigravity credential is a real failure and has to read as one. The
- * local rows ride along with it rather than replacing it.
+ * If the remote quota probe fails (e.g. Secret Service unavailable, token expired,
+ * or subscription required for Cloud Code quota summary), catch the error gracefully
+ * and return the local usage rows with a notice instead of failing the entire provider.
  */
-export async function probeAntigravityUsage(): Promise<AntigravityUsage> {
-  const quota = await probeAntigravityQuota();
-  return { ...quota, usage: readAntigravityUsageRows(createNodeAntigravityUsageAdapters()) };
+export async function probeAntigravityUsage(
+  adapters: AntigravityUsageAdapters = createNodeAntigravityUsageAdapters(),
+  quotaProbe: () => Promise<AntigravityQuota> = probeAntigravityQuota,
+): Promise<AntigravityUsage> {
+  let quota: AntigravityQuota;
+  let notice: string | null = null;
+  try {
+    quota = await quotaProbe();
+  } catch (err) {
+    notice = err instanceof Error ? err.message : String(err);
+    quota = {
+      source: "antigravity",
+      fetchedAt: new Date().toISOString(),
+      tier: null,
+      buckets: [],
+    };
+  }
+  const usage = readAntigravityUsageRows(adapters);
+  return {
+    ...quota,
+    notice: notice ?? quota.notice ?? null,
+    usage,
+  };
 }

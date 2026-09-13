@@ -52,6 +52,7 @@ const USER_ENDPOINT = "https://api.github.com/copilot_internal/user";
 export const COPILOT_ENV_VARIABLES = [
   "COPILOT_TOKEN",
   "GITHUB_TOKEN",
+  "GH_TOKEN",
   "GITHUB_PAT",
   "COPILOT_GITHUB_TOKEN",
 ] as const;

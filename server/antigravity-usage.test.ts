@@ -3,6 +3,7 @@ import type { AntigravityStepUsage } from "./antigravity-clients.server";
 import {
   type AntigravityUsageAdapters,
   type AntigravityUsageRow,
+  probeAntigravityUsage,
   readAntigravityUsageRows,
 } from "./antigravity-usage.server";
 import type { HistoryAdapters } from "./history.server";
@@ -266,3 +267,38 @@ describe("readAntigravityUsageRows", () => {
     expect(rows.requests.map((row) => row.group)).toEqual(["Antigravity CLI", "Antigravity CLI"]);
   });
 });
+
+describe("probeAntigravityUsage", () => {
+  test("merges successful quota probe with local usage rows", async () => {
+    const fakeQuota = {
+      source: "antigravity",
+      fetchedAt: "2026-09-13T16:00:00.000Z",
+      tier: "Pro",
+      buckets: [
+        { id: "b1", label: "Gemini (5h)", group: "Gemini", usedPercent: 10, resetsAt: null },
+      ],
+    };
+    const ad = adapters({ clientSteps: { [CLI_STORE]: [step(1, 10)] } });
+    const result = await probeAntigravityUsage(ad, async () => fakeQuota);
+
+    expect(result.source).toBe("antigravity");
+    expect(result.tier).toBe("Pro");
+    expect(result.buckets).toHaveLength(1);
+    expect(result.notice).toBeNull();
+    expect(result.usage.requests).toHaveLength(2);
+  });
+
+  test("gracefully falls back to local usage rows when quota probe throws", async () => {
+    const ad = adapters({ clientSteps: { [CLI_STORE]: [step(1, 10)] } });
+    const result = await probeAntigravityUsage(ad, async () => {
+      throw new Error("Secret Service is unavailable");
+    });
+
+    expect(result.source).toBe("antigravity");
+    expect(result.tier).toBeNull();
+    expect(result.buckets).toEqual([]);
+    expect(result.notice).toContain("Secret Service is unavailable");
+    expect(result.usage.requests).toHaveLength(2);
+  });
+});
+

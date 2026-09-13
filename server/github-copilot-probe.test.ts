@@ -147,6 +147,7 @@ describe("resolveCopilotToken", () => {
     const { adapters: githubAdapters } = createAdapters({
       env: {
         GITHUB_TOKEN: "gho_github",
+        GH_TOKEN: "gho_gh",
         GITHUB_PAT: "ghp_pat",
         COPILOT_GITHUB_TOKEN: "gho_copilot_gh",
       },
@@ -154,6 +155,18 @@ describe("resolveCopilotToken", () => {
     expect(resolveCopilotToken(githubAdapters)).toEqual({
       token: "gho_github",
       origin: "env GITHUB_TOKEN",
+    });
+
+    const { adapters: ghAdapters } = createAdapters({
+      env: {
+        GH_TOKEN: "gho_gh",
+        GITHUB_PAT: "ghp_pat",
+        COPILOT_GITHUB_TOKEN: "gho_copilot_gh",
+      },
+    });
+    expect(resolveCopilotToken(ghAdapters)).toEqual({
+      token: "gho_gh",
+      origin: "env GH_TOKEN",
     });
 
     const { adapters: patAdapters } = createAdapters({
